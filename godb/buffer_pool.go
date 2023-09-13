@@ -5,9 +5,6 @@ package godb
 //It is also the primary way in which transactions are enforced, by using page
 //level locking (you will not need to worry about this until lab3).
 
-import (
-)
-
 // Permissions used to when reading / locking pages
 type RWPerm int
 
@@ -58,11 +55,11 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // you can read it from disk uing [DBFile.readPage]. If the buffer pool is full (i.e.,
 // already stores numPages pages), a page should be evicted.  Should not evict
 // pages that are dirty, as this would violate NO STEAL. If the buffer pool is
-// full of dirty pages, you should return an error. Before returning the page,
-// attempt to lock it with the specified permission.  If the lock is
+// full of dirty pages, you should return an error. For lab 1, you do not need to
+// implement locking or deadlock detection. [For future labs, before returning the page,
+// attempt to lock it with the specified permission. If the lock is
 // unavailable, should block until the lock is free. If a deadlock occurs, abort
-// one of the transactions in the deadlock. For lab 1, you do not need to
-// implement locking or deadlock detection. You will likely want to store a list
+// one of the transactions in the deadlock]. You will likely want to store a list
 // of pages in the BufferPool in a slice keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (*Page, error) {
 	// TODO: some code goes here

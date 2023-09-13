@@ -313,6 +313,7 @@ pages. If more than `numPages` requests are made for different
 pages, you should evict one of them according to an eviction policy of your choice.
 Note that you *should not* evict dirty pages (pages where the `Page` method `isDirty()` returns true), for
 reasons we will explain when we discuss transactions later in the class.
+You don't need to worry about locking in lab 1. 
 
 
 
