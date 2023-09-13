@@ -215,21 +215,66 @@ on the instructions in the last section.
 
 ## <a name="submitting-labs">Submitting Labs</a>
 
-We will be using Gradescope to autograde all labs. You should have all been
-invited to the class instance; if not, please check Piazza for an invite code.
-If you are still having trouble, let us know and we can help you get set up. You
-may submit your code multiple times before the deadline; we will use the latest
-version as determined by Gradescope. Place the write-up in a file called
-`labN-writeup.txt` with your submission (with `N` replaced with the relevant lab
-number).
+We will be using Gradescope to autograde all programming assignments. You should
+have all been invited to the class instance; if not, please check Piazza for an
+invite code. If you are still having trouble, let us know and we can help you
+set up. You may submit your code multiple times before the deadline; we will use
+the latest version as determined by Gradescope. Place the write-up in a file
+called `lab1-writeup.txt` with your submission.
 
-The easiest way to submit to gradescope is with `.zip` files containing your
-code. For example on Linux/macOS, you can submit lab 1 by running the following
-command:
+If you are working with a partner, only one person needs to submit to
+Gradescope. However, make sure to add the other person to your group. Also note
+that each member must have their own writeup. Please add your Kerberos username
+to the file name and in the writeup itself (e.g., `lab1-writeup-username1.txt`
+and `lab1-writeup-username2.txt`).
+
+The easiest way to submit to Gradescope is with `.zip` files containing your
+code. On Linux/macOS, you can do so by running the following command:
 
 ```bash
-$ zip -r submission.zip src/ lab1-writeup.txt
+$ zip -r submission.zip godb/ lab1-writeup.txt
+
+# If you are working with a partner:
+$ zip -r submission.zip godb/ lab1-writeup-username1.txt lab1-writeup-username2.txt
 ```
+
+## <a name="submitting-bug">Submitting a bug</a>
+
+Please submit (friendly!) bug reports to
+[6.5830-staff@mit.edu](mailto:6.5830-staff@mit.edu). When you do, please try to
+include:
+
+* A description of the bug.
+* A `.go` file with test functions that we can drop into the `godb` directory, compile, and run.
+* A `.txt` file with the data that reproduces the bug.
+
+If you are the first person to report a particular bug in the code, we will give
+you a candy bar!
+
+<!--The latest bug reports/fixes can be found [here](bugs.html).-->
+
+<a name="grading"></a>
+
+## <a name="grading">Grading</a>
+
+75% of your grade will be based on whether or not your code passes the system
+test suite we will run over it. These tests will be a superset of the tests we
+have provided. Before handing in your code, you should make sure it produces no
+errors (passes all of the tests) when you run `go test` in the `godb` directory.
+
+**Important:** before testing, Gradescope will replace the go test files with our version of these files.
+This means you should make sure that your code passes the unmodified tests.
+
+You should get immediate feedback and error outputs for failed visible tests (if any)
+from Gradescope after submission. There may exist several hidden tests (a small percentage) that will not be visible until after the deadline.
+The score given will be your grade for the
+autograded portion of the assignment. An additional 25% of your grade will be
+based on the quality of your writeup and our subjective evaluation of your code.
+This part will also be published on Gradescope after we finish grading your
+assignment.
+
+We had a lot of fun designing this assignment, and we hope you enjoy hacking on
+it!
 
 ## <a name="word-of-caution">Word of Caution</a>
 
