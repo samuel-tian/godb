@@ -190,7 +190,7 @@ debugging. We'll provide explicit instructions on how to use these commands to a
 Pulling in labs that are released or previous lab solutions should be easy as long as you set up your repository based
 on the instructions in the last section.
 
-1. All new lab and previous lab solutions will be posted to the [labs repository][labs-github] in the class organization.
+1. All new labs will be posted to the [labs repository][labs-github] in the class organization.
 
    Check it periodically as well as Piazza's announcements for updates on when the new labs are released.
 
@@ -211,7 +211,7 @@ on the instructions in the last section.
    $ git push origin main
    ```
 
-3. If you've followed the instructions in each lab, you should have no merge conflicts and everything should be peachy.
+3. If you've followed the instructions in each lab, you should have no merge conflicts.  If you encounter merge conflicts, please reach out to course staff.
 
 ## <a name="submitting-labs">Submitting Labs</a>
 
