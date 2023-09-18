@@ -60,7 +60,7 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // attempt to lock it with the specified permission. If the lock is
 // unavailable, should block until the lock is free. If a deadlock occurs, abort
 // one of the transactions in the deadlock]. You will likely want to store a list
-// of pages in the BufferPool in a slice keyed by the [DBFile.pageKey].
+// of pages in the BufferPool in a map keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (*Page, error) {
 	// TODO: some code goes here
 	return nil, nil
