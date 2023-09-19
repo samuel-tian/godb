@@ -94,10 +94,10 @@ func (p *heapPage) getFile() *DBFile {
 	return nil //replace me
 }
 
-// Write the heapPage to the specified buffer. Returns an error if the write to
-// the the buffer fails. You will likely want to call this from your
-// [HeapFile.flushPage] method.  You should write the page header, using the
-// binary.Write method in LittleEndian order, followed by the tuples of the
+// Allocate a new bytes.Buffer and write the heap page to it. Returns an error
+// if the write to the the buffer fails. You will likely want to call this from
+// your [HeapFile.flushPage] method.  You should write the page header, using
+// the binary.Write method in LittleEndian order, followed by the tuples of the
 // page, written using the Tuple.writeTo method.
 func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
 	// TODO: some code goes here
