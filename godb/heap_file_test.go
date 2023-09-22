@@ -99,16 +99,17 @@ func testSerializeN(t *testing.T, n int) {
 		// hack to force dirty pages to disk
 		// because CommitTransaction may not be implemented
 		// yet if this is called in lab 1 or 2
-		for j := 0; j < hf.NumPages(); j++ {
-			pg, err := bp.GetPage(hf, j, tid, ReadPerm)
-			if pg == nil || err != nil {
-				t.Fatal("page nil or error", err)
+		if i%10 == 0 {
+			for j := hf.NumPages() - 1; j > -1; j-- {
+				pg, err := bp.GetPage(hf, j, tid, ReadPerm)
+				if pg == nil || err != nil {
+					t.Fatal("page nil or error", err)
+				}
+				if (*pg).isDirty() {
+					(*hf).flushPage(pg)
+					(*pg).setDirty(false)
+				}
 			}
-			if (*pg).isDirty() {
-				(*hf).flushPage(pg)
-				(*pg).setDirty(false)
-			}
-
 		}
 
 		//commit frequently to prevent buffer pool from filling
