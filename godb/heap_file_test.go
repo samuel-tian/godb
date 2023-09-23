@@ -28,7 +28,7 @@ func makeTestVars() (TupleDesc, Tuple, Tuple, *HeapFile, *BufferPool, Transactio
 			IntField{999},
 		}}
 
-	bp := NewBufferPool(2)
+	bp := NewBufferPool(3)
 	os.Remove(TestingFile)
 	hf, err := NewHeapFile(TestingFile, &td, bp)
 	if err != nil {
