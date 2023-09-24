@@ -1,5 +1,9 @@
 package godb
 
+import (
+    "errors"
+)
+
 //BufferPool provides methods to cache pages that have been read from disk.
 //It has a fixed capacity to limit the total amount of memory used by GoDB.
 //It is also the primary way in which transactions are enforced, by using page
@@ -15,12 +19,18 @@ const (
 
 type BufferPool struct {
 	// TODO: some code goes here
+    numPages int
+    size int
+    pages map[any](*Page)
 }
 
 // Create a new BufferPool with the specified number of pages
 func NewBufferPool(numPages int) *BufferPool {
 	// TODO: some code goes here
-	return &BufferPool{}
+    ret := new(BufferPool)
+    ret.numPages = numPages
+    ret.pages = make(map[any](*Page))
+	return ret
 }
 
 // Testing method -- iterate through all pages in the buffer pool
@@ -63,5 +73,32 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // of pages in the BufferPool in a map keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (*Page, error) {
 	// TODO: some code goes here
-	return nil, nil
+    pageKey := file.pageKey(pageNo)
+    for k, v := range bp.pages {
+        if pageKey == k {
+            return v, nil
+        }
+    }
+
+    // page is not in buffer pool
+    page, err := file.readPage(pageNo)
+    if err != nil {
+        return nil, err
+    }
+    if bp.size == bp.numPages {
+        pageEvicted := false
+        for k, v := range bp.pages {
+            if !(*v).isDirty() {
+                delete(bp.pages, k)
+                pageEvicted = true
+                break
+            }
+        }
+        if !pageEvicted {
+            return nil, errors.New("buffer pool is full of dirty pages")
+        }
+    }
+    bp.pages[pageKey] = page
+
+	return page, nil
 }
