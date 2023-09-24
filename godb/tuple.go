@@ -214,6 +214,8 @@ func readTupleFrom(b *bytes.Buffer, desc *TupleDesc) (*Tuple, error) {
                 lastIndex++
             }
             t.Fields = append(t.Fields, StringField{Value: string(tmp[:lastIndex])})
+        default:
+            t.Fields = append(t.Fields, nil)
         }
     }
 

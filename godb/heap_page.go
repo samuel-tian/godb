@@ -5,7 +5,7 @@ import (
 	"bytes"
     "unsafe"
     "errors"
-    _ "fmt"
+    "fmt"
 )
 
 /* HeapPage implements the Page interface for pages of HeapFiles. We have
@@ -58,6 +58,7 @@ type heapPage struct {
     heapFile *HeapFile
     desc *TupleDesc
     tuples [](*Tuple)
+    pageNo int
 }
 
 // Construct a new heap page
@@ -74,11 +75,15 @@ func newHeapPage(desc *TupleDesc, pageNo int, f *HeapFile) *heapPage {
     }
     var numSlots int32 = (int32)(PageSize - 8) / tupleSize
     tuples := make([](*Tuple), numSlots)
+    for i, _ := range tuples {
+        tuples[i] = nil
+    }
     return &heapPage{numSlots: numSlots,
                      numUsedSlots: 0,
                      dirty: false,
                      heapFile: f,
                      desc: desc,
+                     pageNo: pageNo,
                      tuples: tuples} //replace me
 }
 
@@ -98,10 +103,11 @@ func (h *heapPage) insertTuple(t *Tuple) (recordID, error) {
         if tup == nil {
             h.tuples[i] = t
             h.numUsedSlots++
+            h.setDirty(true)
             return i, nil
         }
     }
-    return nil, errors.New("should not reach here")
+    return nil, errors.New(fmt.Sprintf("should not reach here %d %d", h.numUsedSlots, h.numSlots))
 }
 
 // Delete the tuple in the specified slot number, or return an error if
@@ -115,6 +121,7 @@ func (h *heapPage) deleteTuple(rid recordID) error {
         }
         h.tuples[rid] = nil
         h.numUsedSlots--
+        h.setDirty(true)
         return nil
     default:
         return errors.New("invalid record ID")
@@ -172,15 +179,22 @@ func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
 // Read the contents of the HeapPage from the supplied buffer.
 func (h *heapPage) initFromBuffer(buf *bytes.Buffer) error {
 	// TODO: some code goes here
-    err := binary.Read(buf, binary.LittleEndian, &h.numSlots)
+    var numSlots int32
+    err := binary.Read(buf, binary.LittleEndian, &numSlots)
     if err != nil {
         return err
+    }
+    h.numSlots = numSlots
+    h.tuples = make([](*Tuple), numSlots)
+    for i, _ := range h.tuples {
+        h.tuples[i] = nil
     }
     var numUsedSlots int32
     err = binary.Read(buf, binary.LittleEndian, &numUsedSlots)
     if err != nil {
         return err
     }
+    h.numUsedSlots = 0
     for i := 0; i < (int)(numUsedSlots); i++ {
         tup, err := readTupleFrom(buf, h.desc)
         if err != nil {
