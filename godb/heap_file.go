@@ -183,30 +183,62 @@ func (f *HeapFile) readPage(pageNo int) (*Page, error) {
 // rather than directly reading pages itself. For lab 1, you do not need to
 // worry about concurrent transactions modifying the Page or HeapFile.  We will
 // add support for concurrent modifications in lab 3.
+
+type RecordID struct {
+    pageNo int
+    slotNo int
+}
+
 func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 	// TODO: some code goes here
     pageInserted := false
     for i := 0; i < f.numPages; i++ {
+        _, ok := f.bufPool.pages[f.pageKey(i)]
+        if !ok {
+            continue
+        }
         page, err := f.bufPool.GetPage(f, i, tid, 0)
         if err != nil {
             return err
         }
         hp := (*page).(*heapPage)
-        _, err = hp.insertTuple(t)
+        slot, err := hp.insertTuple(t)
         if err == nil {
             pageInserted = true
+            t.Rid = RecordID{pageNo: i, slotNo: slot.(int)}
             break
         }
     }
     if !pageInserted {
-        page := newHeapPage(f.td, f.numPages, f)
-        _, err := page.insertTuple(t)
-        if err != nil {
-            return err
+        for i := 0; i < f.numPages; i++ {
+            _, ok := f.bufPool.pages[f.pageKey(i)]
+            if ok {
+                continue
+            }
+            page, err := f.bufPool.GetPage(f, i, tid, 0)
+            if err != nil {
+                return err
+            }
+            hp := (*page).(*heapPage)
+            slot, err := hp.insertTuple(t)
+            if err == nil {
+                pageInserted = true
+                t.Rid = RecordID{pageNo: i, slotNo: slot.(int)}
+                break
+            }
         }
-        var p Page = page
-        f.numPages++
-        f.flushPage(&p)
+        if !pageInserted {
+
+            page := newHeapPage(f.td, f.numPages, f)
+            slot, err := page.insertTuple(t)
+            t.Rid = RecordID{pageNo: f.numPages, slotNo: slot.(int)}
+            if err != nil {
+                return err
+            }
+            var p Page = page
+            f.numPages++
+            f.flushPage(&p)
+        }
     }
 	return nil //replace me
 
@@ -219,6 +251,16 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 // heap page and slot within the page that the tuple came from.
 func (f *HeapFile) deleteTuple(t *Tuple, tid TransactionID) error {
 	// TODO: some code goes here
+    rid := t.Rid.(RecordID)
+    page, err := f.bufPool.GetPage(f, rid.pageNo, tid, 0)
+    if err != nil {
+        return err
+    }
+    hp := (*page).(*heapPage)
+    err = hp.deleteTuple(rid.slotNo)
+    if err != nil {
+        return err
+    }
 	return nil //replace me
 }
 
@@ -256,8 +298,7 @@ func (f *HeapFile) flushPage(p *Page) error {
 // Supplied as argument to NewHeapFile.
 func (f *HeapFile) Descriptor() *TupleDesc {
 	// TODO: some code goes here
-
-	return nil //replace me
+    return f.td
 
 }
 
