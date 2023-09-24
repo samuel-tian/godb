@@ -2,6 +2,7 @@ package godb
 
 import (
     "errors"
+    _ "fmt"
 )
 
 //BufferPool provides methods to cache pages that have been read from disk.
@@ -37,6 +38,10 @@ func NewBufferPool(numPages int) *BufferPool {
 // and flush them using [DBFile.flushPage]. Does not need to be thread/transaction safe
 func (bp *BufferPool) FlushAllPages() {
 	// TODO: some code goes here
+    for _, v := range bp.pages {
+        f := (*v).getFile()
+        (*f).flushPage(v)
+    }
 }
 
 // Abort the transaction, releasing locks. Because GoDB is FORCE/NO STEAL, none
@@ -73,6 +78,7 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // of pages in the BufferPool in a map keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (*Page, error) {
 	// TODO: some code goes here
+    // fmt.Println(fmt.Sprintf("GetPage %d", pageNo))
     pageKey := file.pageKey(pageNo)
     for k, v := range bp.pages {
         if pageKey == k {
@@ -97,6 +103,8 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
         if !pageEvicted {
             return nil, errors.New("buffer pool is full of dirty pages")
         }
+    } else {
+        bp.size++
     }
     bp.pages[pageKey] = page
 
