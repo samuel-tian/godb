@@ -7,6 +7,7 @@ import (
 func TestSimpleQuery(t *testing.T) {
 
 	bp := NewBufferPool(10000)
+	MakeTestDatabaseEasy(bp)
 
 	catName := "catalog.txt"
 
