@@ -1,6 +1,9 @@
 package godb
 
-import "golang.org/x/exp/constraints"
+import (
+    "golang.org/x/exp/constraints"
+    _ "fmt"
+)
 
 type Filter[T constraints.Ordered] struct {
 	op     BoolOp
@@ -49,7 +52,7 @@ func newFilter[T constraints.Ordered](constExpr Expr, op BoolOp, field Expr, chi
 // Return a TupleDescriptor for this filter op.
 func (f *Filter[T]) Descriptor() *TupleDesc {
 	// TODO: some code goes here
-	return nil
+    return f.child.Descriptor()
 }
 
 // Filter operator implementation. This function should iterate over
@@ -58,5 +61,36 @@ func (f *Filter[T]) Descriptor() *TupleDesc {
 // HINT: you can use the evalPred function defined in types.go to compare two values
 func (f *Filter[T]) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 	// TODO: some code goes here
-	return nil, nil
+    childIter, err := f.child.Iterator(tid)
+    if err != nil {
+        return nil, err
+    }
+
+    return func() (*Tuple, error) {
+        for {
+            t, err := childIter()
+            if err != nil {
+                return nil, err
+            }
+            if t == nil {
+                return nil, nil
+            }
+
+            left_eval, err := f.left.EvalExpr(t)
+            if err != nil {
+                return nil, err
+            }
+            right_eval, err := f.right.EvalExpr(t)
+            if err != nil {
+                return nil, err
+            }
+
+            left_val := f.getter(left_eval)
+            right_val := f.getter(right_eval)
+            if evalPred(left_val, right_val, f.op) {
+                return t, nil
+            }
+        }
+        return nil, nil
+    }, nil
 }
