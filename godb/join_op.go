@@ -1,5 +1,9 @@
 package godb
 
+import (
+    "fmt"
+)
+
 type EqualityJoin[T comparable] struct {
 	// Expressions that when applied to tuples from the left or right operators,
 	// respectively, return the value of the left or right side of the join
@@ -52,7 +56,7 @@ func NewStringJoin(left Operator, leftField Expr, right Operator, rightField Exp
 // HINT: use the merge function you implemented for TupleDesc in lab1
 func (hj *EqualityJoin[T]) Descriptor() *TupleDesc {
 	// TODO: some code goes here
-	return nil
+    return (*(hj.left)).Descriptor().merge((*(hj.right)).Descriptor())
 }
 
 // Join operator implementation.  This function should iterate over the results
@@ -72,5 +76,63 @@ func (hj *EqualityJoin[T]) Descriptor() *TupleDesc {
 func (joinOp *EqualityJoin[T]) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 
 	// TODO: some code goes here
+    leftIter, err := (*(joinOp.left)).Iterator(tid)
+    if err != nil {
+        return nil, err
+    }
+    left_tuple, err := leftIter()
+    if err != nil {
+        return nil, err
+    }
+    if left_tuple == nil {
+        return nil, nil
+    }
+    left_eval, err := joinOp.leftField.EvalExpr(left_tuple)
+    if err != nil {
+        return nil, err
+    }
+    left_val := joinOp.getter(left_eval)
+
+    var rightIter func() (*Tuple, error)
+    return func() (*Tuple, error) {
+        for {
+            rightIter, err = (*(joinOp.right)).Iterator(tid)
+            if err != nil {
+                return nil, err
+            }
+            for {
+                right_tuple, err := rightIter()
+                if err != nil {
+                    return nil, err
+                }
+                if right_tuple == nil {
+                    break
+                }
+                right_eval, err := joinOp.rightField.EvalExpr(left_tuple)
+                if err != nil {
+                    return nil, err
+                }
+                right_val := joinOp.getter(right_eval)
+
+                if left_val == right_val {
+                    return joinTuples(left_tuple, right_tuple), nil
+                }
+            }
+
+            left_tuple, err = leftIter()
+            if err != nil {
+                return nil, err
+            }
+            if left_tuple == nil {
+                return nil, nil
+            }
+            left_eval, err = joinOp.leftField.EvalExpr(left_tuple)
+            if err != nil {
+                return nil, err
+            }
+            left_val = joinOp.getter(left_eval)
+        }
+    }, nil
+    fmt.Println("test")
 	return nil, nil
 }
