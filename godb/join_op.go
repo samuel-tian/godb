@@ -1,7 +1,7 @@
 package godb
 
 import (
-    "fmt"
+    _ "fmt"
 )
 
 type EqualityJoin[T comparable] struct {
@@ -93,10 +93,9 @@ func (joinOp *EqualityJoin[T]) Iterator(tid TransactionID) (func() (*Tuple, erro
     }
     left_val := joinOp.getter(left_eval)
 
-    var rightIter func() (*Tuple, error)
+    rightIter, err := (*(joinOp.right)).Iterator(tid)
     return func() (*Tuple, error) {
         for {
-            rightIter, err = (*(joinOp.right)).Iterator(tid)
             if err != nil {
                 return nil, err
             }
@@ -108,7 +107,7 @@ func (joinOp *EqualityJoin[T]) Iterator(tid TransactionID) (func() (*Tuple, erro
                 if right_tuple == nil {
                     break
                 }
-                right_eval, err := joinOp.rightField.EvalExpr(left_tuple)
+                right_eval, err := joinOp.rightField.EvalExpr(right_tuple)
                 if err != nil {
                     return nil, err
                 }
@@ -131,8 +130,7 @@ func (joinOp *EqualityJoin[T]) Iterator(tid TransactionID) (func() (*Tuple, erro
                 return nil, err
             }
             left_val = joinOp.getter(left_eval)
+            rightIter, err = (*(joinOp.right)).Iterator(tid)
         }
     }, nil
-    fmt.Println("test")
-	return nil, nil
 }

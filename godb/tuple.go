@@ -247,6 +247,9 @@ func (t1 *Tuple) equals(t2 *Tuple) bool {
 // Merge two tuples together, producing a new tuple with the fields of t2 appended to t1.
 func joinTuples(t1 *Tuple, t2 *Tuple) *Tuple {
 	// TODO: some code goes here
+    if t1 == nil {
+        return t2
+    }
     desc := (&t1.Desc).merge(&t2.Desc)
     fields := append(t1.Fields, t2.Fields...)
 
