@@ -1,11 +1,15 @@
 package godb
 
+import (
+    _ "fmt"
+)
+
 type Project struct {
 	selectFields []Expr // required fields for parser
 	outputNames  []string
 	child        Operator
 	//add additional fields here
-	// TODO: some code goes here
+    distinct bool
 }
 
 // Project constructor -- should save the list of selected field, child, and the child op.
@@ -15,7 +19,10 @@ type Project struct {
 // only distinct results, and child is the child operator.
 func NewProjectOp(selectFields []Expr, outputNames []string, distinct bool, child Operator) (Operator, error) {
 	// TODO: some code goes here
-	return nil, nil
+    if len(outputNames) != len(selectFields) {
+        return nil, GoDBError{MalformedDataError, "field lengths not equal"}
+    }
+    return &Project{selectFields, outputNames, child, distinct}, nil
 }
 
 // Return a TupleDescriptor for this projection. The returned descriptor should contain
@@ -24,8 +31,15 @@ func NewProjectOp(selectFields []Expr, outputNames []string, distinct bool, chil
 // HINT: you can use expr.GetExprType() to get the field type
 func (p *Project) Descriptor() *TupleDesc {
 	// TODO: some code goes here
-	return nil
-
+    fts := []FieldType{}
+    for i, expr := range p.selectFields {
+        field := expr.GetExprType()
+        field.Fname = p.outputNames[i]
+        fts = append(fts, field)
+    }
+    td := TupleDesc{}
+    td.Fields = fts
+    return &td
 }
 
 // Project operator implementation.  This function should iterate over the
@@ -36,5 +50,29 @@ func (p *Project) Descriptor() *TupleDesc {
 // optional as specified in the lab 2 assignment.
 func (p *Project) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 	// TODO: some code goes here
-	return nil, nil
+    childIter, err := p.child.Iterator(tid)
+    if err != nil {
+        return nil, err
+    }
+
+    return func() (*Tuple, error) {
+        for t, err := childIter(); t != nil || err != nil; t, err = childIter() {
+            if err != nil {
+                return nil, err
+            }
+            var ret Tuple
+            ret.Desc = *p.Descriptor()
+            var fields []DBValue
+            for _, expr := range p.selectFields {
+                eval, err := expr.EvalExpr(t)
+                if err != nil {
+                    return nil, err
+                }
+                fields = append(fields, eval)
+            }
+            ret.Fields = fields
+            return &ret, nil
+        }
+        return nil, nil
+    }, nil
 }

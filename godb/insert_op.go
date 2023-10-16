@@ -35,7 +35,7 @@ func (iop *InsertOp) Iterator(tid TransactionID) (func() (*Tuple, error), error)
     if err != nil {
         return nil, err
     }
-    count := 0;
+    count := 0
     for t, err := childIter(); t != nil || err != nil; t, err = childIter() {
         if err != nil {
             return nil, err
