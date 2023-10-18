@@ -100,6 +100,7 @@ func TestDirtyBit(t *testing.T) {
 	tid := NewTID()
 	bp.BeginTransaction(tid)
 	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t1, tid)
 	page, _ := bp.GetPage(hf, 0, tid, ReadPerm)
 	if !(*page).isDirty() {
 		t.Fatalf("Expected page to be dirty")
