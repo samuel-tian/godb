@@ -266,8 +266,7 @@ func TestHeapFileSize(t *testing.T) {
 		t.Fatalf("unexpected error, stat, %s", err.Error())
 	}
 	if info.Size() != int64(PageSize) {
-		t.Fatalf("heap file is not %d bytes", PageSize)
-
+		t.Fatalf("heap file page is not %d bytes;  NOTE:  This error may be OK, but many implementations that don't write full pages break.", PageSize)
 	}
 
 }
@@ -347,7 +346,7 @@ func TestBufferLen(t *testing.T) {
 	buf, _ := page.toBuffer()
 
 	if buf.Len() != PageSize {
-		t.Fatalf("HeapPage.toBuffer returns buffer of unexpected size")
+		t.Fatalf("HeapPage.toBuffer returns buffer of unexpected size;  NOTE:  This error may be OK, but many implementations that don't write full pages break.")
 	}
 
 }
@@ -436,18 +435,19 @@ func TestTupleProjectExtra(t *testing.T) {
 		}}
 
 	t2, err := t1.project([]FieldType{
-		{Fname: "name1"},
-		{Fname: "name2"},
-		{Fname: "name1", TableQualifier: "tq1"},
-		{Fname: "name2", TableQualifier: "tq2"},
-		{Fname: "name1", TableQualifier: "tq2"},
+		{Fname: "name1", TableQualifier: "tq1", Ftype: StringType},
+		{Fname: "name2", TableQualifier: "", Ftype: StringType},
+		{Fname: "name1", TableQualifier: "tq1", Ftype: StringType},
+		{Fname: "name2", TableQualifier: "tq2", Ftype: StringType},
+		{Fname: "name1", TableQualifier: "tq2", Ftype: StringType},
 	})
+
 
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	if t2.Fields[0].(StringField).Value != "SFname1tq1" && t2.Fields[0].(StringField).Value != "SFname1tq2" {
+if t2.Fields[0].(StringField).Value != "SFname1tq1" {
 		t.Errorf("wrong match 0")
 	}
 
