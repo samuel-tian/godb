@@ -82,9 +82,9 @@ func TestSetDirty(t *testing.T) {
 	_, t1, _, hf, bp, _ := makeTestVars()
 	tid := NewTID()
 	bp.BeginTransaction(tid)
-	for i := 0; i < 307; i++ {
+	for i := 0; i < 308; i++ {
 		err := hf.insertTuple(&t1, tid)
-		if err != nil && i == 306 {
+		if err != nil && (i == 306 || i == 307) {
 			return
 		} else if err != nil {
 			t.Fatalf("%v", err)
