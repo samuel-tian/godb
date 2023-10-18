@@ -389,7 +389,11 @@ func TestBufferPoolHoldsMultipleHeapFiles(t *testing.T) {
 		panic(err)
 	}
 
-	if hf.insertTuple(&t1, tid) != nil || hf2.insertTuple(&t2, tid) != nil {
+	err1 := hf.insertTuple(&t1, tid)
+	err2 := hf.insertTuple(&t1, tid)
+	err3 := hf2.insertTuple(&t2, tid)
+
+	if err1 != nil || err2 != nil || err3 != nil {
 		t.Errorf("The BufferPool should be able to handle multiple files")
 	}
 	// bp contains 2 dirty pages at this point
@@ -410,6 +414,7 @@ func TestBufferPoolHoldsMultipleHeapFiles(t *testing.T) {
 	}
 
 	// bp contains 3 dirty pages at this point, including 2 full pages of hf2
+	_ = hf2.insertTuple(&t2, tid)
 	if err := hf2.insertTuple(&t2, tid); err == nil {
 		t.Errorf("should cause bufferpool dirty page overflow here")
 	}
