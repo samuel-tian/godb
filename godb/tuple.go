@@ -210,7 +210,7 @@ func readTupleFrom(b *bytes.Buffer, desc *TupleDesc) (*Tuple, error) {
                 return nil, err
             }
             lastIndex := 0
-            for tmp[lastIndex] != 0 {
+            for lastIndex < len(tmp) && tmp[lastIndex] != 0 {
                 lastIndex++
             }
             t.Fields = append(t.Fields, StringField{Value: string(tmp[:lastIndex])})
@@ -331,7 +331,7 @@ func (t *Tuple) project(fields []FieldType) (*Tuple, error) {
         for j, tf := range t.Desc.Fields {
             if f.Fname == tf.Fname {
                 if val != nil {
-                    if f.TableQualifier == tf.TableQualifier {
+                    if f.TableQualifier != tf.TableQualifier {
                         continue
                     }
                 }
