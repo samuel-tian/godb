@@ -55,6 +55,7 @@ func (p *Project) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
         return nil, err
     }
 
+	tuples_seen := make(map[any]bool)
     return func() (*Tuple, error) {
         for t, err := childIter(); t != nil || err != nil; t, err = childIter() {
             if err != nil {
@@ -71,7 +72,15 @@ func (p *Project) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
                 fields = append(fields, eval)
             }
             ret.Fields = fields
-            return &ret, nil
+            key := ret.tupleKey()
+            if !p.distinct {
+                return &ret, nil
+            } else {
+                if tuples_seen[key] == false {
+                    tuples_seen[key] = true
+                    return &ret, nil
+                }
+            }
         }
         return nil, nil
     }, nil

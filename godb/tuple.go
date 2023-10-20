@@ -249,6 +249,8 @@ func joinTuples(t1 *Tuple, t2 *Tuple) *Tuple {
 	// TODO: some code goes here
     if t1 == nil {
         return t2
+    } else if t2 == nil {
+        return t1
     }
     desc := (&t1.Desc).merge(&t2.Desc)
     fields := append(t1.Fields, t2.Fields...)
