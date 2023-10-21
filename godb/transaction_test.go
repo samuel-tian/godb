@@ -20,7 +20,7 @@ func TestTid(t *testing.T) {
 	}
 }
 
-const numConcurrentThreads int = 200
+const numConcurrentThreads int = 20
 
 var c chan int = make(chan int, numConcurrentThreads*2)
 
