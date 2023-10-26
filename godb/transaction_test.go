@@ -27,6 +27,7 @@ var c chan int = make(chan int, numConcurrentThreads*2)
 func readXaction(hf *HeapFile, bp *BufferPool, wg *sync.WaitGroup) {
 	tid := NewTID()
 	bp.BeginTransaction(tid)
+	pgCnt1 := hf.NumPages()
 	it, _ := hf.Iterator(tid)
 	cnt1 := 0
 
@@ -55,7 +56,7 @@ func readXaction(hf *HeapFile, bp *BufferPool, wg *sync.WaitGroup) {
 		}
 		cnt2++
 	}
-	if cnt1 == cnt2 {
+	if cnt1 == cnt2 || pgCnt1 != hf.NumPages() {
 		//fmt.Printf("read same number of tuples both iterators (%d)\n", cnt1)
 		c <- 1
 	} else {
