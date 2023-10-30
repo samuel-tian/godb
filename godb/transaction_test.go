@@ -231,9 +231,9 @@ func (i *Singleton) Iterator(tid TransactionID) (func() (*Tuple, error), error) 
 
 // Run threads transactions, each each of which reads
 // a single tuple from a page, deletes the tuple, and re-inserts
-// it with an incremented value
-// Since there is no deadlock, eventually all transactions
-// should commit and the value should have incremented threads times.
+// it with an incremented value.
+// There will be deadlocks, so your deadlock handling will have to be correct to allow
+// all transactions to be committed and the value to be incremented threads times.
 func validateTransactions(t *testing.T, threads int) {
 	bp, hf, _, _, _, t2 := transactionTestSetUpVarLen(t, 1, 1)
 
