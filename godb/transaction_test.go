@@ -401,7 +401,7 @@ func TestAbortEviction(t *testing.T) {
 	bp.BeginTransaction(tid2)
 
 	// tuple should not exist after abortion
-	if exists, err := tupExists(t1, tid, hf); !(exists == false && err == nil) {
+	if exists, err := tupExists(t1, tid2, hf); !(exists == false && err == nil) {
 		t.Errorf("Tuple should not exist")
 	}
 }
