@@ -2,6 +2,7 @@ package godb
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -25,64 +26,73 @@ const numConcurrentThreads int = 20
 var c chan int = make(chan int, numConcurrentThreads*2)
 
 func readXaction(hf *HeapFile, bp *BufferPool, wg *sync.WaitGroup) {
-	tid := NewTID()
-	bp.BeginTransaction(tid)
-	pgCnt1 := hf.NumPages()
-	it, _ := hf.Iterator(tid)
-	cnt1 := 0
 
 	for {
-		t, err := it()
-		if err != nil {
-			fmt.Print(err.Error())
+	start:
+		tid := NewTID()
+		bp.BeginTransaction(tid)
+		it, _ := hf.Iterator(tid)
+		cnt1 := 0
+
+		for {
+			t, err := it()
+			if err != nil {
+				// Assume this is because of a deadlock, restart txn
+				time.Sleep(time.Duration(rand.Intn(8)) * 100 * time.Microsecond)
+				goto start
+			}
+			if t == nil {
+				break
+			}
+			cnt1++
+		}
+
+		it, _ = hf.Iterator(tid)
+		cnt2 := 0
+		for {
+			t, err := it()
+			if err != nil {
+				// Assume this is because of a deadlock, restart txn
+				time.Sleep(time.Duration(rand.Intn(8)) * 100 * time.Microsecond)
+				goto start
+			}
+			if t == nil {
+				break
+			}
+			cnt2++
+		}
+		if cnt1 == cnt2 {
+			//fmt.Printf("read same number of tuples both iterators (%d)\n", cnt1)
+			c <- 1
+		} else {
+			fmt.Printf("ERROR: read different number of tuples both iterators (%d, %d)\n", cnt1, cnt2)
 			c <- 0
-			return
 		}
-		if t == nil {
-			break
-		}
-		cnt1++
+		bp.CommitTransaction(tid)
+		wg.Done()
+		return
 	}
-
-	it, _ = hf.Iterator(tid)
-	cnt2 := 0
-	for {
-		t, err := it()
-		if err != nil {
-			fmt.Printf("error: %s", err.Error())
-		}
-		if t == nil {
-			break
-		}
-		cnt2++
-	}
-	if cnt1 == cnt2 || pgCnt1 != hf.NumPages() {
-		//fmt.Printf("read same number of tuples both iterators (%d)\n", cnt1)
-		c <- 1
-	} else {
-		fmt.Printf("ERROR: read different number of tuples both iterators (%d, %d)\n", cnt1, cnt2)
-		c <- 0
-	}
-	bp.CommitTransaction(tid)
-	wg.Done()
 }
 
 func writeXaction(hf *HeapFile, bp *BufferPool, writeTuple Tuple, wg *sync.WaitGroup) {
 	//_, t1, _, _, _ := makeTestVars()
 
-	tid := NewTID()
-	bp.BeginTransaction(tid)
-	for i := 0; i < 10; i++ {
-		err := hf.insertTuple(&writeTuple, tid)
-		if err != nil {
-			fmt.Print(err.Error())
-			c <- 0
-			goto done
+	for {
+	start:
+		tid := NewTID()
+		bp.BeginTransaction(tid)
+		for i := 0; i < 10; i++ {
+			err := hf.insertTuple(&writeTuple, tid)
+			if err != nil {
+				// Assume this is because of a deadlock, restart txn
+				time.Sleep(time.Duration(rand.Intn(8)) * 100 * time.Microsecond)
+				goto start
+			}
 		}
+		bp.CommitTransaction(tid)
+		break
 	}
 	c <- 1
-done:
-	bp.CommitTransaction(tid)
 	wg.Done()
 }
 
@@ -231,9 +241,9 @@ func (i *Singleton) Iterator(tid TransactionID) (func() (*Tuple, error), error) 
 
 // Run threads transactions, each each of which reads
 // a single tuple from a page, deletes the tuple, and re-inserts
-// it with an incremented value
-// Since there is no deadlock, eventually all transactions
-// should commit and the value should have incremented threads times.
+// it with an incremented value.
+// There will be deadlocks, so your deadlock handling will have to be correct to allow
+// all transactions to be committed and the value to be incremented threads times.
 func validateTransactions(t *testing.T, threads int) {
 	bp, hf, _, _, _, t2 := transactionTestSetUpVarLen(t, 1, 1)
 
@@ -401,7 +411,7 @@ func TestAbortEviction(t *testing.T) {
 	bp.BeginTransaction(tid2)
 
 	// tuple should not exist after abortion
-	if exists, err := tupExists(t1, tid, hf); !(exists == false && err == nil) {
+	if exists, err := tupExists(t1, tid2, hf); !(exists == false && err == nil) {
 		t.Errorf("Tuple should not exist")
 	}
 }
