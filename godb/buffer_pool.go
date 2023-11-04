@@ -2,7 +2,9 @@ package godb
 
 import (
     "errors"
-    _ "fmt"
+    "sync"
+    "time"
+    "fmt"
 )
 
 //BufferPool provides methods to cache pages that have been read from disk.
@@ -23,6 +25,10 @@ type BufferPool struct {
     numPages int
     size int
     pages map[any](*Page)
+    poolLock sync.Mutex
+    aliveTransactions map[TransactionID]struct{}
+    transactionReadLocks map[TransactionID](map[any]struct{})
+    transactionWriteLocks map[TransactionID](map[any]struct{})
 }
 
 // Create a new BufferPool with the specified number of pages
@@ -31,6 +37,9 @@ func NewBufferPool(numPages int) *BufferPool {
     ret := new(BufferPool)
     ret.numPages = numPages
     ret.pages = make(map[any](*Page))
+    ret.aliveTransactions = make(map[TransactionID]struct{})
+    ret.transactionReadLocks = make(map[TransactionID](map[any]struct{}))
+    ret.transactionWriteLocks = make(map[TransactionID](map[any]struct{}))
 	return ret
 }
 
@@ -49,6 +58,21 @@ func (bp *BufferPool) FlushAllPages() {
 // release locks to abort. You do not need to implement this for lab 1.
 func (bp *BufferPool) AbortTransaction(tid TransactionID) {
 	// TODO: some code goes here
+    bp.poolLock.Lock()
+    defer bp.poolLock.Unlock()
+
+    for pageKey, _ := range bp.transactionWriteLocks[tid] {
+        page, ok  := bp.pages[pageKey]
+        if (ok) {
+            if ((*page).isDirty()) {
+                delete(bp.pages, pageKey)
+            }
+        }
+    }
+
+    delete(bp.aliveTransactions, tid)
+    delete(bp.transactionReadLocks, tid)
+    delete(bp.transactionWriteLocks, tid)
 }
 
 // Commit the transaction, releasing locks. Because GoDB is FORCE/NO STEAL, none
@@ -58,10 +82,35 @@ func (bp *BufferPool) AbortTransaction(tid TransactionID) {
 // WAL. You do not need to implement this for lab 1.
 func (bp *BufferPool) CommitTransaction(tid TransactionID) {
 	// TODO: some code goes here
+    bp.poolLock.Lock()
+    defer bp.poolLock.Unlock()
+
+    for _, pageKey := range bp.transactionWriteLocks[tid] {
+        page, ok := bp.pages[pageKey]
+        if ok {
+            if ((*page).isDirty()) {
+                f := (*page).getFile()
+                (*f).flushPage(page)
+            }
+        }
+    }
+
+    delete(bp.aliveTransactions, tid)
+    delete(bp.transactionReadLocks, tid)
+    delete(bp.transactionWriteLocks, tid)
 }
 
 func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 	// TODO: some code goes here
+    if false {
+        fmt.Println("false")
+    }
+    bp.poolLock.Lock()
+    defer bp.poolLock.Unlock()
+
+    bp.aliveTransactions[tid] = struct{}{}
+    bp.transactionReadLocks[tid] = make(map[any]struct{})
+    bp.transactionWriteLocks[tid] = make(map[any]struct{})
 	return nil
 }
 
@@ -78,12 +127,65 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // of pages in the BufferPool in a map keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (*Page, error) {
 	// TODO: some code goes here
-    // fmt.Println(fmt.Sprintf("GetPage %d", pageNo))
+
     pageKey := file.pageKey(pageNo)
-    for k, v := range bp.pages {
-        if pageKey == k {
-            return v, nil
+
+    for {
+        bp.poolLock.Lock()
+        bad := false
+        if perm == ReadPerm {
+            // check write locks
+            for other_tid, _ := range bp.aliveTransactions {
+                if other_tid == tid {
+                    continue
+                }
+                writeLocks := bp.transactionWriteLocks[other_tid]
+                for lock, _ := range writeLocks {
+                    if (lock == pageKey) {
+                        bad = true
+                    }
+                }
+            }
+        } else if perm == WritePerm {
+            // check read and write locks
+            for other_tid, _ := range bp.aliveTransactions {
+                if other_tid == tid {
+                    continue
+                }
+                readLocks := bp.transactionReadLocks[other_tid]
+                for lock, _ := range readLocks {
+                    if (lock == pageKey) {
+                        bad = true
+                    }
+                }
+                writeLocks := bp.transactionWriteLocks[other_tid]
+                for lock, _ := range writeLocks {
+                    if (lock == pageKey) {
+                        bad = true
+                    }
+                }
+            }
         }
+        if (bad) {
+            time.Sleep(10 * time.Millisecond)
+            bp.poolLock.Unlock()
+        } else {
+            break
+        }
+    }
+
+    defer bp.poolLock.Unlock()
+
+    if perm == ReadPerm {
+        bp.transactionReadLocks[tid][pageKey] = struct{}{}
+    } else if perm == WritePerm {
+        bp.transactionWriteLocks[tid][pageKey] = struct{}{}
+    }
+
+
+    v, ok := bp.pages[pageKey]
+    if ok {
+        return v, nil
     }
 
     // page is not in buffer pool

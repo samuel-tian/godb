@@ -197,7 +197,7 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
         if !ok {
             continue
         }
-        page, err := f.bufPool.GetPage(f, i, tid, 0)
+        page, err := f.bufPool.GetPage(f, i, tid, WritePerm)
         if err != nil {
             return err
         }
@@ -215,7 +215,7 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
             if ok {
                 continue
             }
-            page, err := f.bufPool.GetPage(f, i, tid, 0)
+            page, err := f.bufPool.GetPage(f, i, tid, WritePerm)
             if err != nil {
                 return err
             }
@@ -229,22 +229,12 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
         }
         if !pageInserted {
 
-            // page := newHeapPage(f.td, f.numPages, f)
-            // slot, err := page.insertTuple(t)
-            // t.Rid = RecordID{pageNo: f.numPages, slotNo: slot.(int)}
-            // if err != nil {
-            //     return err
-            // }
-            // var p Page = page
-            // f.numPages++
-            // f.flushPage(&p)
-
             page := newHeapPage(f.td, f.numPages, f)
             var p Page = page
             f.numPages++
             f.flushPage(&p)
 
-            bufPoolPage, err := f.bufPool.GetPage(f, f.numPages - 1, tid, ReadPerm)
+            bufPoolPage, err := f.bufPool.GetPage(f, f.numPages - 1, tid, WritePerm)
             if err != nil {
                 return err
             }
@@ -268,7 +258,7 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 func (f *HeapFile) deleteTuple(t *Tuple, tid TransactionID) error {
 	// TODO: some code goes here
     rid := t.Rid.(RecordID)
-    page, err := f.bufPool.GetPage(f, rid.pageNo, tid, 0)
+    page, err := f.bufPool.GetPage(f, rid.pageNo, tid, WritePerm)
     if err != nil {
         return err
     }
@@ -330,7 +320,7 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 
 	// TODO: some code goes here
     pageNo := 0
-    p, err := f.bufPool.GetPage(f, pageNo, tid, 0)
+    p, err := f.bufPool.GetPage(f, pageNo, tid, ReadPerm)
     if err != nil {
         return func() (*Tuple, error) {
             return nil, nil
@@ -345,7 +335,7 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
             if pageNo >= f.numPages {
                 return nil, nil
             } else {
-                p, err = f.bufPool.GetPage(f, pageNo, tid, 0)
+                p, err = f.bufPool.GetPage(f, pageNo, tid, ReadPerm)
                 hp = (*p).(*heapPage)
                 iter = hp.tupleIter()
                 t, err = iter()
