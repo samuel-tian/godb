@@ -229,15 +229,31 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
         }
         if !pageInserted {
 
+            // page := newHeapPage(f.td, f.numPages, f)
+            // slot, err := page.insertTuple(t)
+            // t.Rid = RecordID{pageNo: f.numPages, slotNo: slot.(int)}
+            // if err != nil {
+            //     return err
+            // }
+            // var p Page = page
+            // f.numPages++
+            // f.flushPage(&p)
+
             page := newHeapPage(f.td, f.numPages, f)
-            slot, err := page.insertTuple(t)
-            t.Rid = RecordID{pageNo: f.numPages, slotNo: slot.(int)}
-            if err != nil {
-                return err
-            }
             var p Page = page
             f.numPages++
             f.flushPage(&p)
+
+            bufPoolPage, err := f.bufPool.GetPage(f, f.numPages - 1, tid, ReadPerm)
+            if err != nil {
+                return err
+            }
+
+            slot, err := ((*bufPoolPage).(*heapPage)).insertTuple(t)
+            t.Rid = RecordID{pageNo: f.numPages - 1, slotNo: slot.(int)}
+            if err != nil {
+                return err
+            }
         }
     }
 	return nil //replace me
