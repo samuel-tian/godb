@@ -1,10 +1,12 @@
 package godb
 
 import (
+    _ "github.com/kylelemons/godebug/pretty"
     "errors"
     "sync"
     "time"
-    "fmt"
+    _ "fmt"
+    "math/rand"
 )
 
 //BufferPool provides methods to cache pages that have been read from disk.
@@ -29,6 +31,8 @@ type BufferPool struct {
     aliveTransactions map[TransactionID]struct{}
     transactionReadLocks map[TransactionID](map[any]struct{})
     transactionWriteLocks map[TransactionID](map[any]struct{})
+
+    adjacencyList map[TransactionID](map[TransactionID]struct{})
 }
 
 // Create a new BufferPool with the specified number of pages
@@ -40,6 +44,8 @@ func NewBufferPool(numPages int) *BufferPool {
     ret.aliveTransactions = make(map[TransactionID]struct{})
     ret.transactionReadLocks = make(map[TransactionID](map[any]struct{}))
     ret.transactionWriteLocks = make(map[TransactionID](map[any]struct{}))
+
+    ret.adjacencyList = make(map[TransactionID](map[TransactionID]struct{}))
 	return ret
 }
 
@@ -60,12 +66,17 @@ func (bp *BufferPool) AbortTransaction(tid TransactionID) {
 	// TODO: some code goes here
     bp.poolLock.Lock()
     defer bp.poolLock.Unlock()
+    _, ok := bp.aliveTransactions[tid]
+    if !ok {
+        return
+    }
 
     for pageKey, _ := range bp.transactionWriteLocks[tid] {
         page, ok  := bp.pages[pageKey]
         if (ok) {
             if ((*page).isDirty()) {
                 delete(bp.pages, pageKey)
+                bp.size--
             }
         }
     }
@@ -73,6 +84,13 @@ func (bp *BufferPool) AbortTransaction(tid TransactionID) {
     delete(bp.aliveTransactions, tid)
     delete(bp.transactionReadLocks, tid)
     delete(bp.transactionWriteLocks, tid)
+    delete(bp.adjacencyList, tid)
+    for _, v := range bp.adjacencyList {
+        _, ok = v[tid]
+        if ok {
+            delete(v, tid)
+        }
+    }
 }
 
 // Commit the transaction, releasing locks. Because GoDB is FORCE/NO STEAL, none
@@ -85,7 +103,7 @@ func (bp *BufferPool) CommitTransaction(tid TransactionID) {
     bp.poolLock.Lock()
     defer bp.poolLock.Unlock()
 
-    for _, pageKey := range bp.transactionWriteLocks[tid] {
+    for pageKey, _ := range bp.transactionWriteLocks[tid] {
         page, ok := bp.pages[pageKey]
         if ok {
             if ((*page).isDirty()) {
@@ -98,20 +116,56 @@ func (bp *BufferPool) CommitTransaction(tid TransactionID) {
     delete(bp.aliveTransactions, tid)
     delete(bp.transactionReadLocks, tid)
     delete(bp.transactionWriteLocks, tid)
+    delete(bp.adjacencyList, tid)
+    for _, v := range bp.adjacencyList {
+        delete(v, tid)
+    }
 }
 
 func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 	// TODO: some code goes here
-    if false {
-        fmt.Println("false")
-    }
     bp.poolLock.Lock()
     defer bp.poolLock.Unlock()
 
     bp.aliveTransactions[tid] = struct{}{}
     bp.transactionReadLocks[tid] = make(map[any]struct{})
     bp.transactionWriteLocks[tid] = make(map[any]struct{})
+    bp.adjacencyList[tid] = make(map[TransactionID]struct{})
 	return nil
+}
+
+func (bp *BufferPool) dfs(tid TransactionID, visited map[TransactionID]bool, visitedThisIter map[TransactionID]bool) bool {
+    visited[tid] = true
+    visitedThisIter[tid] = true
+    for next, _ := range bp.adjacencyList[tid] {
+        if !visited[next] {
+            cycleFound := bp.dfs(next, visited, visitedThisIter)
+            if cycleFound {
+                return true
+            }
+        } else if visitedThisIter[next] {
+            return true
+        }
+    }
+    visitedThisIter[tid] = false
+    return false
+}
+
+func (bp *BufferPool) findCycle() bool {
+    visited := make(map[TransactionID]bool)
+    visitedThisIter := make(map[TransactionID]bool)
+    for tid, _ := range bp.aliveTransactions {
+        visited[tid] = false
+        visitedThisIter[tid] = false
+    }
+    for tid, _ := range bp.aliveTransactions {
+        if !visited[tid] {
+            if bp.dfs(tid, visited, visitedThisIter) {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 // Retrieve the specified page from the specified DBFile (e.g., a HeapFile), on
@@ -129,6 +183,13 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
 	// TODO: some code goes here
 
     pageKey := file.pageKey(pageNo)
+    bp.poolLock.Lock()
+    _, ok := bp.aliveTransactions[tid]
+    if !ok {
+        bp.poolLock.Unlock()
+        return nil, errors.New("transaction is not alive")
+    }
+    bp.poolLock.Unlock()
 
     for {
         bp.poolLock.Lock()
@@ -142,6 +203,7 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
                 writeLocks := bp.transactionWriteLocks[other_tid]
                 for lock, _ := range writeLocks {
                     if (lock == pageKey) {
+                        bp.adjacencyList[tid][other_tid] = struct{}{}
                         bad = true
                     }
                 }
@@ -155,20 +217,29 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
                 readLocks := bp.transactionReadLocks[other_tid]
                 for lock, _ := range readLocks {
                     if (lock == pageKey) {
+                        bp.adjacencyList[tid][other_tid] = struct{}{}
                         bad = true
                     }
                 }
                 writeLocks := bp.transactionWriteLocks[other_tid]
                 for lock, _ := range writeLocks {
                     if (lock == pageKey) {
+                        bp.adjacencyList[tid][other_tid] = struct{}{}
                         bad = true
                     }
                 }
             }
         }
-        if (bad) {
-            time.Sleep(10 * time.Millisecond)
+        randTime := rand.Intn(30) - 15
+        if bp.findCycle() {
             bp.poolLock.Unlock()
+            bp.AbortTransaction(tid)
+            time.Sleep(time.Duration(15+ randTime) * time.Millisecond)
+            return nil, errors.New("transaction aborted")
+        }
+        if (bad) {
+            bp.poolLock.Unlock()
+            time.Sleep(time.Duration(15 + randTime) * time.Millisecond)
         } else {
             break
         }

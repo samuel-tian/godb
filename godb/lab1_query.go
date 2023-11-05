@@ -35,6 +35,7 @@ func computeFieldSum(fileName string, td TupleDesc, sumField string) (int, error
     fields := make([]FieldType, 1)
     fields[0] = FieldType{Fname: sumField}
     tid := NewTID()
+    bp.BeginTransaction(tid)
     iter, _ := hf.Iterator(tid)
     ret := 0
     for {
@@ -51,6 +52,8 @@ func computeFieldSum(fileName string, td TupleDesc, sumField string) (int, error
         }
         // ret += (int)(t.Fields[0].(IntField).Value)
     }
+
+    bp.CommitTransaction(tid)
 
 	return ret, nil // replace me
 }

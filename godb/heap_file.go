@@ -23,7 +23,7 @@ type HeapFile struct {
     filename string
     td *TupleDesc
     numPages int
-	sync.Mutex
+	heapFileLock sync.Mutex
 }
 
 // Create a HeapFile.
@@ -229,6 +229,9 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
         }
         if !pageInserted {
 
+            f.heapFileLock.Lock()
+            defer f.heapFileLock.Unlock()
+
             page := newHeapPage(f.td, f.numPages, f)
             var p Page = page
             f.numPages++
@@ -280,6 +283,7 @@ func (f *HeapFile) flushPage(p *Page) error {
     hp := (*p).(*heapPage)
     buf, err := hp.toBuffer()
     if err != nil {
+        panic("WTF")
         return err
     }
     file, err := os.OpenFile(f.filename, os.O_CREATE|os.O_RDWR, 0755)
@@ -289,11 +293,13 @@ func (f *HeapFile) flushPage(p *Page) error {
     defer file.Close()
     _, err = file.Seek((int64)(PageSize * hp.pageNo), 0)
     if err != nil {
+        panic("WTF")
         return err
     }
 
     _, err = file.Write(buf.Bytes())
     if err != nil {
+        panic("WTF")
         return err
     }
     (*p).setDirty(false)
@@ -324,7 +330,7 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
     if err != nil {
         return func() (*Tuple, error) {
             return nil, nil
-        }, nil
+        }, err
     }
     hp := (*p).(*heapPage)
     iter := hp.tupleIter()
@@ -336,6 +342,9 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
                 return nil, nil
             } else {
                 p, err = f.bufPool.GetPage(f, pageNo, tid, ReadPerm)
+                if err != nil {
+                    return nil, err
+                }
                 hp = (*p).(*heapPage)
                 iter = hp.tupleIter()
                 t, err = iter()

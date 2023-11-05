@@ -40,7 +40,10 @@ func (iop *InsertOp) Iterator(tid TransactionID) (func() (*Tuple, error), error)
         if err != nil {
             return nil, err
         }
-        iop.file.insertTuple(t, tid)
+        err = iop.file.insertTuple(t, tid)
+        if err != nil {
+            return nil, err
+        }
         count++
     }
 
