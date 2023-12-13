@@ -55,6 +55,12 @@ func (d1 *TupleDesc) equals(d2 *TupleDesc) bool {
 
 }
 
+func (d1 *TupleDesc) nthField(n int) *TupleDesc {
+  field := make([]FieldType, 1)
+  field[0] = d1.Fields[n]
+  return &TupleDesc{Fields : field}
+}
+
 // Given a FieldType f and a TupleDesc desc, find the best
 // matching field in desc for f.  A match is defined as
 // having the same Ftype and the same name, preferring a match

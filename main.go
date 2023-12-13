@@ -195,13 +195,13 @@ func main() {
 					fmt.Printf("\033[31;1m%s\033[0m\n", err.Error())
 					continue
 				}
-				heapFile := hf.(*godb.HeapFile)
+				columnFile := hf.(*godb.ColumnFile)
 				f, err := os.Open(path)
 				if err != nil {
 					fmt.Printf("\033[31;1m%s\033[0m\n", err.Error())
 					continue
 				}
-				err = heapFile.LoadFromCSV(f, hasHeader, sep, false)
+				err = columnFile.LoadFromCSV(f, hasHeader, sep, false)
 				if err != nil {
 					fmt.Printf("\033[31;1m%s\033[0m\n", err.Error())
 					continue

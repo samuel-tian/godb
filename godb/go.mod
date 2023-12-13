@@ -11,5 +11,6 @@ require (
 
 require (
 	github.com/chzyer/readline v1.5.1 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 )
