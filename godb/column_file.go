@@ -138,6 +138,19 @@ func (f *ColumnFile) insertTuple(t *Tuple, tid TransactionID) error {
 }
 
 func (f *ColumnFile) deleteTuple(t *Tuple, tid TransactionID) error {
+  rid := t.Rid.(RecordID)
+  startPageNo := rid.pageNo
+  for i := 0; i < f.numColumns; i++ {
+    page, err := f.bufPool.GetPage(f, startPageNo + i, tid, WritePerm)
+    if err != nil {
+      return err
+    }
+    cp := (*page).(*columnPage)
+    err = cp.deleteTuple(rid.slotNo)
+    if err != nil {
+      return err
+    }
+  }
   return nil
 }
 
